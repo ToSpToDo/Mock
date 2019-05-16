@@ -169,7 +169,23 @@ Handler.extend({
                 options.context.path.pop()
                 options.context.templatePath.pop()
             } else {
-                // 'data|+1': [{}, {}]
+                /**
+                 *  arrKey|+step : 步进的属性规则 ！默认从0开始
+                 *      'arrKey|+1': [{}, {}]
+                 *  处理：
+                 *      将数组item进行递归处理。从0开始顺序步进获取
+                 *
+                 *  demos:
+                 *      // todo : 不知道官方示例怎么生效的
+                 *      Mock.mock({  "array|+1": ["AMD","CMD","UMD"]  })
+                 *      // this is ok !
+                 *      Mock.mock({
+                 *              "array|3": [
+                 *                   // 不属于数组的步进规则。具体查看object中的步进规则处理逻辑
+                 *                  {'id|+1': 1}
+                 *               ]
+                 *          })
+                 */
                 if (options.rule.parameters[2]) {
                     options.template.__order_index = options.template.__order_index || 0
 
@@ -192,9 +208,14 @@ Handler.extend({
                     options.context.templatePath.pop()
 
                 } else {
-                    // 'data|1-10': [{}]
+                    /**
+                     *   arrKey|min-max : 随机个数。rule.count 为对应的随机个数值。or arrKey|num(min >1)
+                     *      'arrKey|1-8': [{}, {}]
+                     *  处理：
+                     *      按照随机个数值 & 将数组[item1,item2]按照整体进行递归处理。
+                     */
                     for (i = 0; i < options.rule.count; i++) {
-                        // 'data|1-10': [{}, {}]
+                        // 把 [{},{}] 作为一个整体进行随机处理的。（大多数情况下都是一个值得[{}]）
                         for (ii = 0; ii < options.template.length; ii++) {
                             options.context.path.push(result.length)
                             options.context.templatePath.push(ii)

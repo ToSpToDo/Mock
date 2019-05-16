@@ -49,6 +49,6 @@
     "main": "dist/mock.js"
   },
   "pre-commit": [
-
+    "protect"
   ]
 }

@@ -7,7 +7,7 @@ module.exports = {
         if (cur !== undefined) {
             min = typeof min !== 'undefined' && !isNaN(min) ? parseInt(min, 10) : 1
             max = typeof max !== 'undefined' && !isNaN(max) ? parseInt(max, 10) : 1
-            return Math.random() > 1.0 / (min + max) * min ? !cur : cur
+            return Math.random() > 1.0 / (min + max) * min ? cur : !cur
         }
 
         return Math.random() >= 0.5

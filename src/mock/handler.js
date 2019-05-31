@@ -86,7 +86,7 @@ Handler.gen = function (template, name, context) {
             // 属性名 + 生成规则
             name: name,
             // 属性名
-            parsedName: name ? name.replace(Constant.RE_KEY, '$1') : name,
+            parsedName: name ? rule.name : name,
 
             // 解析后的生成规则
             rule: rule,
@@ -286,6 +286,8 @@ Handler.extend({
                     if (!afn && bfn) return -1
                 })
             */
+
+            console.log(keys, options.template)
 
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]

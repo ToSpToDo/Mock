@@ -1,14 +1,14 @@
-/* 
+/*
     ## Handler
 
     处理数据模板。
-    
+
     * Handler.gen( template, name?, context? )
 
         入口方法。
 
     * Data Template Definition, DTD
-        
+
         处理数据模板定义。
 
         * Handler.array( options )
@@ -18,7 +18,7 @@
         * Handler.string( options )
         * Handler.function( options )
         * Handler.regexp( options )
-        
+
         处理路径（相对和绝对）。
 
         * Handler.getValueByKeyPath( key, options )
@@ -49,7 +49,7 @@ var Handler = {
 
     Handle.gen(template, name, options)
     context
-        currentContext, templateCurrentContext, 
+        currentContext, templateCurrentContext,
         path, templatePath
         root, templateRoot
 */
@@ -248,6 +248,7 @@ Handler.extend({
             keys = Util.keys(options.template)
             keys = Random.shuffle(keys)
             keys = keys.slice(0, options.rule.count)
+
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]
                 parsedKey = key.replace(Constant.RE_KEY, '$1')
@@ -312,14 +313,27 @@ Handler.extend({
     },
     number: function (options) {
         var result, parts;
-        if (options.rule.decimal) { // float
+        if (options.rule.decimal) {
+            /**
+             * 处理：
+             *      float_range.range|1-10.1-10: template(1.1)  // float_range(数值范围).range(小数点位数)
+             *      1、range(数值范围):参考 else 。无规则时，直接取 template 的整数部分
+             *      2、小数位数：优先使用 template 的。不够随机追加小数点
+             * demos:
+             *       'float_d.range|10.1-8': 1.1,
+             *       'float_range.range|1-8.1-8': 1.1,
+             *       'float_range.count|1-8.3': 1.1,
+             *       'float_.range|.1-8': 1.111111111,
+             *
+             */
             options.template += ''
+            // 拆分 整数 & 小数部分
             parts = options.template.split('.')
-            // 'float1|.1-10': 10,
-            // 'float2|1-100.1-10': 1,
-            // 'float3|999.1-10': 1,
-            // 'float4|.3-10': 123.123,
+
+            // 整数部分：无规则时，取浮点数 template 的整数部分
             parts[0] = options.rule.range ? options.rule.count : parts[0]
+
+            // 小数位数：优先使用 template 的。不够随机追加小数点
             parts[1] = (parts[1] || '').slice(0, options.rule.dcount)
             while (parts[1].length < options.rule.dcount) {
                 parts[1] += (
@@ -327,17 +341,39 @@ Handler.extend({
                     (parts[1].length < options.rule.dcount - 1) ? Random.character('number') : Random.character('123456789')
                 )
             }
+
             result = parseFloat(parts.join('.'), 10)
-        } else { // integer
-            // 'grade1|1-100': 1,
+        } else {
+            /**
+             *  处理：
+             *      无小数匹配规则情况
+             *
+             * demos:
+             *      Mock.mock({
+             *          // todo:
+             *          'int_step|+1': 1,           // 1
+             *          // range : 默认调用随机函数获取 min-max 范围的一个随机值 count ！只有一个数字时，默认设置为 count
+             *          'int_count|10': 1,          // 10
+             *          'int_range|10-100': 1,      // random (10 - 100)
+             *          'int_range_count|10-': 1,   // 10
+             *          // 无规则 template
+             *          'int_template': 1,          // 1
+             *          'int_template_|': 1,        // 1
+             *      })
+             */
             result = options.rule.range && !options.rule.parameters[2] ? options.rule.count : options.template
         }
         return result
     },
     boolean: function (options) {
         var result;
-        // 'prop|multiple': false, 当前值是相反值的概率倍数
-        // 'prop|probability-probability': false, 当前值与相反值的概率
+        /**
+         * 当前值是相反值的概率倍数.不支持小数（自动 parseInt 处理）
+         *
+         * demos:
+         *     'prop|multiple': false,
+         *     'prop|probability-probability': false,
+         */
         result = options.rule.parameters ? Random.bool(options.rule.min, options.rule.max, options.template) : options.template
         return result
     },
@@ -370,7 +406,7 @@ Handler.extend({
                 phed = Handler.placeholder(ph, options.context.currentContext, options.context.templateCurrentContext, options)
 
                 // 只有一个占位符，并且没有其他字符
-                if (placeholders.length === 1 && ph === result && typeof phed !== typeof result) { // 
+                if (placeholders.length === 1 && ph === result && typeof phed !== typeof result) { //
                     result = phed
                     break
 
@@ -399,6 +435,10 @@ Handler.extend({
         // ( context, options )
         return options.template.call(options.context.currentContext, options)
     },
+    /**
+     *
+     *  /regexp/.source => 'regexp'
+     */
     'regexp': function (options) {
         var source = ''
 

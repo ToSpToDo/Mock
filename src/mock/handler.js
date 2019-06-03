@@ -242,10 +242,19 @@ Handler.extend({
         var result = {},
             keys, fnKeys, key, parsedKey, inc, i;
 
-        // 'obj|min-max': {}
         /* jshint -W041 */
+        /**
+         * objKey|min-max :objValue  随机个数。rule.count 为对应的随机个数值。or objKey|num(min >1)
+         *
+         * 处理：
+         *     遍历obj，将item进行递归处理
+         * 备注：
+         *      不同于数组的随机copy。 objKey|count 是随机获取对应的 key
+         *
+         */
         if (options.rule.min != undefined) {
             keys = Util.keys(options.template)
+            // 先打乱顺序，确保取到随机的 obj[key]
             keys = Random.shuffle(keys)
             keys = keys.slice(0, options.rule.count)
 
@@ -267,7 +276,7 @@ Handler.extend({
             }
 
         } else {
-            // 'obj': {}
+            //普通的对象处理 'obj': {}
             keys = []
             fnKeys = [] // #25 改变了非函数属性的顺序，查找起来不方便
             for (key in options.template) {
@@ -287,8 +296,6 @@ Handler.extend({
                 })
             */
 
-            console.log(keys, options.template)
-
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]
                 parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
@@ -304,14 +311,25 @@ Handler.extend({
                 })
                 options.context.path.pop()
                 options.context.templatePath.pop()
-                // 'id|+1': 1
+
+                /**
+                 *  配合数组step ：{ arr|count: [ {'step|+1': 1} ] }
+                 *  处理：
+                 *      生成对应的值，然后覆写template对应值（实现自加）
+                 *  demos:
+                 *      Mock.mock({
+                 *           'arr|3': [{
+                 *               'step|+1': 1
+                 *          }]
+                 *       })
+                 */
                 inc = key.match(Constant.RE_KEY)
                 if (inc && inc[2] && Util.type(options.template[key]) === 'number') {
                     options.template[key] += parseInt(inc[2], 10)
                 }
             }
         }
-        console.log(result)
+
         return result
     },
     number: function (options) {

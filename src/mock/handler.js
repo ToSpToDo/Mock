@@ -176,9 +176,14 @@ Handler.extend({
                  *      将数组item进行递归处理。从0开始顺序步进获取
                  *
                  *  demos:
-                 *      // todo : 不知道官方示例怎么生效的
-                 *      Mock.mock({  "array|+1": ["AMD","CMD","UMD"]  })
-                 *      // this is ok !
+                 *      let template = {
+                 *           'arr_step|+1': [1, 2, 3]
+                 *      };
+                 *      let arr_step1 = Mock.mock(template)
+                 *      let arr_step2 = Mock.mock(template)
+                 *      let arr_step3 = Mock.mock(template)
+                 *
+                 *      // step of object.key
                  *      Mock.mock({
                  *              "array|3": [
                  *                   // 不属于数组的步进规则。具体查看object中的步进规则处理逻辑
@@ -209,13 +214,13 @@ Handler.extend({
 
                 } else {
                     /**
-                     *   arrKey|min-max : 随机个数。rule.count 为对应的随机个数值。or arrKey|num(min >1)
+                     *   arrKey|min-max :[item,item] 随机个数。rule.count 为对应的随机个数值。or arrKey|num(min >1)
                      *      'arrKey|1-8': [{}, {}]
                      *  处理：
                      *      按照随机个数值 & 将数组[item1,item2]按照整体进行递归处理。
                      */
                     for (i = 0; i < options.rule.count; i++) {
-                        // 把 [{},{}] 作为一个整体进行随机处理的。（大多数情况下都是一个值得[{}]）
+                        // 把 [{},{}] 作为一个整体进行随机处理的。（大多数情况下都是一个值[{}]）
                         for (ii = 0; ii < options.template.length; ii++) {
                             options.context.path.push(result.length)
                             options.context.templatePath.push(ii)

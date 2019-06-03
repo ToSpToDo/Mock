@@ -86,7 +86,7 @@ Handler.gen = function (template, name, context) {
             // 属性名 + 生成规则
             name: name,
             // 属性名
-            parsedName: name ? rule.name : name,
+            parsedName: name ? name.replace(Constant.RE_PARSED_KEY, '$1') : name,
 
             // 解析后的生成规则
             rule: rule,
@@ -251,7 +251,7 @@ Handler.extend({
 
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]
-                parsedKey = key.replace(Constant.RE_KEY, '$1')
+                parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
                 options.context.path.push(parsedKey)
                 options.context.templatePath.push(key)
                 result[parsedKey] = Handler.gen(options.template[key], key, {
@@ -291,7 +291,7 @@ Handler.extend({
 
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]
-                parsedKey = key.replace(Constant.RE_KEY, '$1')
+                parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
                 options.context.path.push(parsedKey)
                 options.context.templatePath.push(key)
                 result[parsedKey] = Handler.gen(options.template[key], key, {
@@ -311,6 +311,7 @@ Handler.extend({
                 }
             }
         }
+        console.log(result)
         return result
     },
     number: function (options) {

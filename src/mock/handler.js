@@ -256,7 +256,7 @@ Handler.extend({
             }
         }
 
-        options.context._rootValue.push(result)
+        options.context._rootValue.pop()
         options.context._count.pop()
 
         return result
@@ -343,7 +343,6 @@ Handler.extend({
                 })
                 options.context.path.pop()
                 options.context.templatePath.pop()
-
 
                 /**
                  *  配合数组step ：{ arr|count: [ {'step|+1': 1} ] }

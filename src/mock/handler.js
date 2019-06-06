@@ -62,6 +62,8 @@ Handler.gen = function (template, name, context) {
         // 当前访问路径，只有属性名，不包括生成规则
         path: context.path || [Constant.GUID],
         templatePath: context.templatePath || [Constant.GUID++],
+        _rootValue: context._rootValue || [Constant.GUID++],
+        _count: context._count || [Constant.GUID++],
         // 最终属性值的上下文
         currentContext: context.currentContext,
         // 属性值模板的上下文
@@ -95,6 +97,7 @@ Handler.gen = function (template, name, context) {
         })
 
         if (!context.root) context.root = data
+
         return data
     }
 
@@ -118,6 +121,9 @@ Handler.extend({
          */
         if (options.template.length === 0) return result
 
+        options.context._rootValue.push(result)
+        options.context._count.push(options.rule._count || options.template.length)
+
         /**
          *  无属性规则 ：arrKey:[{key|rule : value|rule}]
          *      'arr': [{ 'email': '@EMAIL' }, { 'email': '@EMAIL' }]
@@ -131,6 +137,8 @@ Handler.extend({
                 options.context.templatePath.push(i)
                 result.push(
                     Handler.gen(options.template[i], i, {
+                        _rootValue: options.context._rootValue,
+                        _count: options.context._count,
                         path: options.context.path,
                         templatePath: options.context.templatePath,
                         currentContext: result,
@@ -158,6 +166,8 @@ Handler.extend({
                 options.context.templatePath.push(options.name)
                 result = Random.pick(
                     Handler.gen(options.template, undefined, {
+                        _rootValue: options.context._rootValue,
+                        _count: options.context._count,
                         path: options.context.path,
                         templatePath: options.context.templatePath,
                         currentContext: result,
@@ -224,8 +234,11 @@ Handler.extend({
                         for (ii = 0; ii < options.template.length; ii++) {
                             options.context.path.push(result.length)
                             options.context.templatePath.push(ii)
+
                             result.push(
                                 Handler.gen(options.template[ii], result.length, {
+                                    _rootValue: options.context._rootValue,
+                                    _count: options.context._count,
                                     path: options.context.path,
                                     templatePath: options.context.templatePath,
                                     currentContext: result,
@@ -234,6 +247,7 @@ Handler.extend({
                                     templateRoot: options.context.templateRoot || options.template
                                 })
                             )
+
                             options.context.path.pop()
                             options.context.templatePath.pop()
                         }
@@ -241,11 +255,18 @@ Handler.extend({
                 }
             }
         }
+
+        options.context._rootValue.push(result)
+        options.context._count.pop()
+
         return result
     },
     object: function (options) {
         var result = {},
             keys, fnKeys, key, parsedKey, inc, i;
+
+        options.context._rootValue.push(result)
+        options.context._count.push(options.rule._count || Util.keys(options.template).length)
 
         /* jshint -W041 */
         /**
@@ -266,9 +287,12 @@ Handler.extend({
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]
                 parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
+
                 options.context.path.push(parsedKey)
                 options.context.templatePath.push(key)
                 result[parsedKey] = Handler.gen(options.template[key], key, {
+                    _rootValue: options.context._rootValue,
+                    _count: options.context._count,
                     path: options.context.path,
                     templatePath: options.context.templatePath,
                     currentContext: result,
@@ -304,9 +328,12 @@ Handler.extend({
             for (i = 0; i < keys.length; i++) {
                 key = keys[i]
                 parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
+
                 options.context.path.push(parsedKey)
                 options.context.templatePath.push(key)
                 result[parsedKey] = Handler.gen(options.template[key], key, {
+                    _rootValue: options.context._rootValue,
+                    _count: options.context._count,
                     path: options.context.path,
                     templatePath: options.context.templatePath,
                     currentContext: result,
@@ -316,6 +343,7 @@ Handler.extend({
                 })
                 options.context.path.pop()
                 options.context.templatePath.pop()
+
 
                 /**
                  *  配合数组step ：{ arr|count: [ {'step|+1': 1} ] }
@@ -334,6 +362,9 @@ Handler.extend({
                 }
             }
         }
+
+        options.context._rootValue.pop()
+        options.context._count.pop()
 
         return result
     },
@@ -495,7 +526,6 @@ Handler.extend({
     },
     // 处理占位符，转换为最终值
     placeholder: function (placeholder, obj, templateContext, options) {
-        // console.log(options.context.path)
         // 1 key, 2 params
         Constant.RE_PLACEHOLDER.exec('')
         var parts = Constant.RE_PLACEHOLDER.exec(placeholder),
@@ -569,7 +599,7 @@ Handler.extend({
             case 'function':
                 // 执行占位符方法（大多数情况）
                 handle.options = options
-                var re = handle.apply(Random, params)
+                var re = handle.apply(Random, [options].concat(params))
                 if (re === undefined) re = '' // 因为是在字符串中，所以默认为空字符串。
                 delete handle.options
                 return re

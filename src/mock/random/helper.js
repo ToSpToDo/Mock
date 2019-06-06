@@ -17,10 +17,45 @@ module.exports = {
     lower: function (str) {
         return (str + '').toLowerCase()
     },
-    unique: function (arr, options) {
-        console.log(arr);
-        console.log(options);
-        return this.pick(arr);
+    /**
+     * 确保随机 mock 的数组数据中 有且仅有一个（key）
+     *
+     * @param options : 模板上下文数据
+     * @param key ： 唯一值
+     * @param arr ： 数组取值范围
+     * @returns {*} ： arr.concat(key)[i]
+     *
+     * Mock.mock({
+     *   'arr|10': [{
+     *       'bool': '@unique(true,[true,false])',
+     *       'number': '@unique(1,[0,2,3,4,5,6])',
+     *       'str': '@unique("a",["a","a","b","c"])'
+     *   }],
+     *   'arr': [{
+     *       'bool': '@unique(true,[true,false])',
+     *       'number': '@unique(1,[0,2,3,4,5,6])',
+     *       'str': '@unique("a",["a","a","a","d"])'
+     *   }, {
+     *       'bool': '@unique(true,[true,false])',
+     *       'number': '@unique(1,[0,2,3,4,5,6])',
+     *       'str': '@unique("a",["a","a","a","d"])'
+     *   }]
+     * })
+     */
+    unique: function (options, key = true, arr = []) {
+        let _arrLength = options.context._count.slice(-2)[0];
+        let _arrValue = options.context._rootValue.slice(-2)[0];
+        let _parsedKey = options.context.path.slice(-1)[0];
+
+        if (_arrValue.some(item => item[_parsedKey] === key)) {
+            return this.pick(arr.filter(item => item !== key));
+        } else {
+            if (_arrLength === _arrValue.length + 1) {
+                return key;
+            } else {
+                return this.pick(arr.filter(item => item !== key).concat(key));
+            }
+        }
     },
     // 从数组中随机选取一个元素，并返回。
     pick: function pick(arr, min, max) {

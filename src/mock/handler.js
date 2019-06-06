@@ -122,7 +122,7 @@ Handler.extend({
         if (options.template.length === 0) return result
 
         options.context._rootValue.push(result)
-        options.context._count.push(options.rule._count || options.template.length)
+        options.context._count.push(options.rule.count || options.template.length)
 
         /**
          *  无属性规则 ：arrKey:[{key|rule : value|rule}]
@@ -266,7 +266,7 @@ Handler.extend({
             keys, fnKeys, key, parsedKey, inc, i;
 
         options.context._rootValue.push(result)
-        options.context._count.push(options.rule._count || Util.keys(options.template).length)
+        options.context._count.push(options.rule.count || Util.keys(options.template).length)
 
         /* jshint -W041 */
         /**

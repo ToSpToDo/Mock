@@ -3,35 +3,35 @@
 */
 module.exports = {
     // 返回一个随机的布尔值。
-    boolean: function(min, max, cur) {
+    boolean: function (min, max, cur) {
         if (cur !== undefined) {
             min = typeof min !== 'undefined' && !isNaN(min) ? parseInt(min, 10) : 1
             max = typeof max !== 'undefined' && !isNaN(max) ? parseInt(max, 10) : 1
-            return Math.random() > 1.0 / (min + max) * min ? !cur : cur
+            return Math.random() > Math.min(min, max) / (min + max) ? cur : !cur
         }
 
         return Math.random() >= 0.5
     },
-    bool: function(min, max, cur) {
+    bool: function (min, max, cur) {
         return this.boolean(min, max, cur)
     },
     // 返回一个随机的自然数（大于等于 0 的整数）。
-    natural: function(min, max) {
+    natural: function (min, max) {
         min = typeof min !== 'undefined' ? parseInt(min, 10) : 0
         max = typeof max !== 'undefined' ? parseInt(max, 10) : 9007199254740992 // 2^53
         return Math.round(Math.random() * (max - min)) + min
     },
     // 返回一个随机的整数。
-    integer: function(min, max) {
+    integer: function (min, max) {
         min = typeof min !== 'undefined' ? parseInt(min, 10) : -9007199254740992
         max = typeof max !== 'undefined' ? parseInt(max, 10) : 9007199254740992 // 2^53
         return Math.round(Math.random() * (max - min)) + min
     },
-    int: function(min, max) {
+    int: function (min, max) {
         return this.integer(min, max)
     },
     // 返回一个随机的浮点数。
-    float: function(min, max, dmin, dmax) {
+    float: function (min, max, dmin, dmax) {
         dmin = dmin === undefined ? 0 : dmin
         dmin = Math.max(Math.min(dmin, 17), 0)
         dmax = dmax === undefined ? 17 : dmax
@@ -46,7 +46,7 @@ module.exports = {
         return parseFloat(ret, 10)
     },
     // 返回一个随机字符。
-    character: function(pool) {
+    character: function (pool) {
         var pools = {
             lower: 'abcdefghijklmnopqrstuvwxyz',
             upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -59,11 +59,11 @@ module.exports = {
         pool = pools[('' + pool).toLowerCase()] || pool
         return pool.charAt(this.natural(0, pool.length - 1))
     },
-    char: function(pool) {
+    char: function (pool) {
         return this.character(pool)
     },
     // 返回一个随机字符串。
-    string: function(pool, min, max) {
+    string: function (pool, min, max) {
         var len
         switch (arguments.length) {
             case 0: // ()
@@ -95,11 +95,11 @@ module.exports = {
 
         return text
     },
-    str: function( /*pool, min, max*/ ) {
+    str: function (/*pool, min, max*/) {
         return this.string.apply(this, arguments)
     },
     // 返回一个整型数组。
-    range: function(start, stop, step) {
+    range: function (start, stop, step) {
         // range( stop )
         if (arguments.length <= 1) {
             stop = start || 0;

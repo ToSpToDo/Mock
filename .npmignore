@@ -1,0 +1,11 @@
+bak
+.DS_Store
+.*.swp
+.idea
+node_modules
+src
+test
+bower_components
+coverage
+PLAN.md
+npm-debug.log

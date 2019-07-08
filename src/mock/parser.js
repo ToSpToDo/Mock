@@ -4,7 +4,7 @@
 	解析数据模板（属性名部分）。
 
 	* Parser.parse( name )
-
+		
 		```json
 		{
 			parameters: [ name, inc, range, decimal ],

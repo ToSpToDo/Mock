@@ -1,14 +1,14 @@
-/* 
+/*
     ## Handler
 
     处理数据模板。
-    
+
     * Handler.gen( template, name?, context? )
 
         入口方法。
 
     * Data Template Definition, DTD
-        
+
         处理数据模板定义。
 
         * Handler.array( options )
@@ -18,7 +18,7 @@
         * Handler.string( options )
         * Handler.function( options )
         * Handler.regexp( options )
-        
+
         处理路径（相对和绝对）。
 
         * Handler.getValueByKeyPath( key, options )
@@ -49,29 +49,29 @@ var Handler = {
 
     Handle.gen(template, name, options)
     context
-        currentContext, templateCurrentContext, 
+        currentContext, templateCurrentContext,
         path, templatePath
         root, templateRoot
 */
-Handler.gen = function(template, name, context) {
+Handler.gen = function (template, name, context) {
     /* jshint -W041 */
     name = name == undefined ? '' : (name + '')
 
     context = context || {}
     context = {
-            // 当前访问路径，只有属性名，不包括生成规则
-            path: context.path || [Constant.GUID],
-            templatePath: context.templatePath || [Constant.GUID++],
-            // 最终属性值的上下文
-            currentContext: context.currentContext,
-            // 属性值模板的上下文
-            templateCurrentContext: context.templateCurrentContext || template,
-            // 最终值的根
-            root: context.root || context.currentContext,
-            // 模板的根
-            templateRoot: context.templateRoot || context.templateCurrentContext || template
-        }
-        // console.log('path:', context.path.join('.'), template)
+        // 当前访问路径，只有属性名，不包括生成规则
+        path: context.path || [Constant.GUID],
+        templatePath: context.templatePath || [Constant.GUID++],
+        // 最终属性值的上下文
+        currentContext: context.currentContext,
+        // 属性值模板的上下文
+        templateCurrentContext: context.templateCurrentContext || template,
+        // 最终值的根
+        root: context.root || context.currentContext,
+        // 模板的根
+        templateRoot: context.templateRoot || context.templateCurrentContext || template
+    }
+    // console.log('path:', context.path.join('.'), template)
 
     var rule = Parser.parse(name)
     var type = Util.type(template)
@@ -102,7 +102,7 @@ Handler.gen = function(template, name, context) {
 }
 
 Handler.extend({
-    array: function(options) {
+    array: function (options) {
         var result = [],
             i, ii;
 
@@ -162,8 +162,8 @@ Handler.extend({
                         root: options.context.root || result,
                         templateRoot: options.context.templateRoot || options.template
                     })[
-                        options.template.__order_index % options.template.length
-                    ]
+                    options.template.__order_index % options.template.length
+                        ]
 
                     options.template.__order_index += +options.rule.parameters[2]
 
@@ -196,7 +196,7 @@ Handler.extend({
         }
         return result
     },
-    object: function(options) {
+    object: function (options) {
         var result = {},
             keys, fnKeys, key, parsedKey, inc, i;
 
@@ -259,7 +259,7 @@ Handler.extend({
                 })
                 options.context.path.pop()
                 options.context.templatePath.pop()
-                    // 'id|+1': 1
+                // 'id|+1': 1
                 inc = key.match(Constant.RE_KEY)
                 if (inc && inc[2] && Util.type(options.template[key]) === 'number') {
                     options.template[key] += parseInt(inc[2], 10)
@@ -268,15 +268,15 @@ Handler.extend({
         }
         return result
     },
-    number: function(options) {
+    number: function (options) {
         var result, parts;
         if (options.rule.decimal) { // float
             options.template += ''
             parts = options.template.split('.')
-                // 'float1|.1-10': 10,
-                // 'float2|1-100.1-10': 1,
-                // 'float3|999.1-10': 1,
-                // 'float4|.3-10': 123.123,
+            // 'float1|.1-10': 10,
+            // 'float2|1-100.1-10': 1,
+            // 'float3|999.1-10': 1,
+            // 'float4|.3-10': 123.123,
             parts[0] = options.rule.range ? options.rule.count : parts[0]
             parts[1] = (parts[1] || '').slice(0, options.rule.dcount)
             while (parts[1].length < options.rule.dcount) {
@@ -292,14 +292,14 @@ Handler.extend({
         }
         return result
     },
-    boolean: function(options) {
+    boolean: function (options) {
         var result;
         // 'prop|multiple': false, 当前值是相反值的概率倍数
         // 'prop|probability-probability': false, 当前值与相反值的概率
         result = options.rule.parameters ? Random.bool(options.rule.min, options.rule.max, options.template) : options.template
         return result
     },
-    string: function(options) {
+    string: function (options) {
         var result = '',
             i, placeholders, ph, phed;
         if (options.template.length) {
@@ -328,7 +328,7 @@ Handler.extend({
                 phed = Handler.placeholder(ph, options.context.currentContext, options.context.templateCurrentContext, options)
 
                 // 只有一个占位符，并且没有其他字符
-                if (placeholders.length === 1 && ph === result && typeof phed !== typeof result) { // 
+                if (placeholders.length === 1 && ph === result && typeof phed !== typeof result) { //
                     result = phed
                     break
 
@@ -339,7 +339,7 @@ Handler.extend({
                     if (/^(true|false)$/.test(phed)) {
                         result = phed === 'true' ? true :
                             phed === 'false' ? false :
-                            phed // 已经是布尔值
+                                phed // 已经是布尔值
                         break
                     }
                 }
@@ -353,11 +353,11 @@ Handler.extend({
         }
         return result
     },
-    'function': function(options) {
+    'function': function (options) {
         // ( context, options )
         return options.template.call(options.context.currentContext, options)
     },
-    'regexp': function(options) {
+    'regexp': function (options) {
         var source = ''
 
         // 'name': /regexp/,
@@ -380,13 +380,13 @@ Handler.extend({
 })
 
 Handler.extend({
-    _all: function() {
+    _all: function () {
         var re = {};
         for (var key in Random) re[key.toLowerCase()] = key
         return re
     },
     // 处理占位符，转换为最终值
-    placeholder: function(placeholder, obj, templateContext, options) {
+    placeholder: function (placeholder, obj, templateContext, options) {
         // console.log(options.context.path)
         // 1 key, 2 params
         Constant.RE_PLACEHOLDER.exec('')
@@ -467,7 +467,7 @@ Handler.extend({
                 return re
         }
     },
-    getValueByKeyPath: function(key, options) {
+    getValueByKeyPath: function (key, options) {
         var originalKey = key
         var keyPathParts = this.splitPathToArray(key)
         var absolutePathParts = []
@@ -514,7 +514,7 @@ Handler.extend({
         }
     },
     // https://github.com/kissyteam/kissy/blob/master/src/path/src/path.js
-    normalizePath: function(pathParts) {
+    normalizePath: function (pathParts) {
         var newPathParts = []
         for (var i = 0; i < pathParts.length; i++) {
             switch (pathParts[i]) {
@@ -529,7 +529,7 @@ Handler.extend({
         }
         return newPathParts
     },
-    splitPathToArray: function(path) {
+    splitPathToArray: function (path) {
         var parts = path.split(/\/+/);
         if (!parts[parts.length - 1]) parts = parts.slice(0, -1)
         if (!parts[0]) parts = parts.slice(1)

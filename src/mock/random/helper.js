@@ -116,7 +116,6 @@ module.exports = {
     /**
      * 确保随机 mock 的数组数据中 有且仅有一个（key）
      *
-     * @param options : 模板上下文数据
      * @param key ： 唯一值
      * @param arr ： 数组取值范围
      * @returns {*} ： arr.concat(key)[i]
@@ -138,9 +137,9 @@ module.exports = {
      *   }]
      * })
      */
-    unique: function (key = true, arr = [false], options) {
+    unique: function (key = true, arr = [false]) {
         try {
-            let _context = options.context; // this.unique.options
+            let _context = this.unique.options.context; // this.unique.options
             let _arrLength = _context._count.slice(-2)[0];
             let _arrValue = _context._rootValue.slice(-2)[0];
             let _parsedKey = _context.path.slice(-1)[0];

@@ -10,13 +10,16 @@
 			parameters: [ name, inc, range, decimal ],
 			rnage: [ min , max ],
 
+            // range
 			min: min,
 			max: max,
+			// random length for range
 			count : count,
 
 			decimal: decimal,
 			dmin: dmin,
 			dmax: dmax,
+			// random length for decimal
 			dcount: dcount
 		}
 		```

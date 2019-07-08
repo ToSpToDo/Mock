@@ -461,6 +461,7 @@ Handler.extend({
             case 'function':
                 // 执行占位符方法（大多数情况）
                 handle.options = options
+                // todo: [options].concat(params)) is better ！但需要改造所有包含参数的 @placeholder 函数
                 var re = handle.apply(Random, params)
                 if (re === undefined) re = '' // 因为是在字符串中，所以默认为空字符串。
                 delete handle.options

@@ -112,5 +112,80 @@ module.exports = {
         )
 
         return cache.array[cache.index++ % cache.array.length]
+    },
+    /**
+     * 确保随机 mock 的数组数据中 有且仅有一个（key）
+     *
+     * @param key ： 唯一值
+     * @param arr ： 数组取值范围
+     * @returns {*} ： arr.concat(key)[i]
+     *
+     * Mock.mock({
+     *   'arr|10': [{
+     *       'bool': '@unique(true,[true,false])',
+     *       'number': '@unique(1,[0,2,3,4,5,6])',
+     *       'str': '@unique("a",["a","a","b","c"])'
+     *   }],
+     *   'arr': [{
+     *       'bool': '@unique(true,[true,false])',
+     *       'number': '@unique(1,[0,2,3,4,5,6])',
+     *       'str': '@unique("a",["a","a","a","d"])'
+     *   }, {
+     *       'bool': '@unique(true,[true,false])',
+     *       'number': '@unique(1,[0,2,3,4,5,6])',
+     *       'str': '@unique("a",["a","a","a","d"])'
+     *   }]
+     * })
+     */
+    unique: function (key = true, arr = [false]) {
+        try {
+            let _context = this.unique.options.context; // this.unique.options
+            let _arrLength = _context._count.slice(-2)[0];
+            let _arrValue = _context._rootValue.slice(-2)[0];
+            let _parsedKey = _context.path.slice(-1)[0];
+
+            if (_arrValue.some(item => item[_parsedKey] === key)) {
+                return this.pick(arr.filter(item => item !== key));
+            } else {
+                if (_arrLength === _arrValue.length + 1) {
+                    return key;
+                } else {
+                    return this.pick(arr.filter(item => item !== key).concat(key));
+                }
+            }
+        } catch (e) {
+            return this.pick([true, false]);
+        }
+    },
+    /**
+     * 通过函数也可以实现：只是觉得比较常用，就统一提供一个占位符简化
+     *
+     * @param arr
+     * @param length
+     * @param key
+     * @returns {Array}
+     */
+    randomArr: function (arr = [false], length = 1, key) {
+        let _result = [];
+        let _filterArr = arr.filter(item => item !== key)
+        let _key = key.context ? undefined : key
+
+        while (_result.length < length) {
+            if (_key === undefined) {
+                _result.push(this.pick(arr))
+            } else {
+                if (_result.indexOf(_key) < 0) {
+                    if (length - 1 === _result.length) {
+                        _result.push(_key)
+                    } else {
+                        _result.push(this.pick(_filterArr.concat(_key)))
+                    }
+                } else {
+                    _result.push(this.pick(_filterArr))
+                }
+            }
+        }
+
+        return _result;
     }
 }

@@ -24,7 +24,6 @@
 */
 module.exports = {
     GUID: 1,
-    RE_PARSED_KEY: /(.+)(?:\|.*)/, // fixed:RE_KEY bug. 'key|10.' => 'key.'
     RE_KEY: /(.+)\|(?:\+(\d+)|([\+\-]?\d+-?[\+\-]?\d*)?(?:\.(\d+-?\d*))?)/,
     RE_RANGE: /([\+\-]?\d+)-?([\+\-]?\d+)?/,
     RE_PLACEHOLDER: /\\*@([^@#%&()\?\s]+)(?:\((.*?)\))?/g

@@ -137,20 +137,29 @@ module.exports = {
      *   }]
      * })
      */
-    unique: function (key = true, arr = [false]) {
-        try {
-            let _context = this.unique.options.context; // this.unique.options
-            let _arrLength = _context._count.slice(-2)[0];
-            let _arrValue = _context._rootValue.slice(-2)[0];
-            let _parsedKey = _context.path.slice(-1)[0];
+    unique: function (key, arr) {
+        key = key === undefined ? true : key;
+        arr = Array.isArray(arr) ? arr : [false];
 
-            if (_arrValue.some(item => item[_parsedKey] === key)) {
-                return this.pick(arr.filter(item => item !== key));
+        try {
+            var _context = this.unique.options.context; // this.unique.options
+            var _arrLength = _context._count.slice(-2)[0];
+            var _arrValue = _context._rootValue.slice(-2)[0];
+            var _parsedKey = _context.path.slice(-1)[0];
+
+            if (_arrValue.some(function (item) {
+                return item[_parsedKey] === key
+            })) {
+                return this.pick(arr.filter(function (item) {
+                    return item !== key
+                }));
             } else {
                 if (_arrLength === _arrValue.length + 1) {
                     return key;
                 } else {
-                    return this.pick(arr.filter(item => item !== key).concat(key));
+                    return this.pick(arr.filter(function (item) {
+                        return item !== key
+                    }).concat(key));
                 }
             }
         } catch (e) {
@@ -165,10 +174,15 @@ module.exports = {
      * @param key
      * @returns {Array}
      */
-    randomArr: function (arr = [false], length = 1, key) {
-        let _result = [];
-        let _filterArr = arr.filter(item => item !== key)
-        let _key = key.context ? undefined : key
+    randomArr: function (arr, length, key) {
+        arr = Array.isArray(arr) ? arr : [false];
+        length = typeof length === 'number' ? length : 1;
+
+        var _result = [];
+        var _filterArr = arr.filter(function (item) {
+            return item !== key
+        })
+        var _key = key.context ? undefined : key
 
         while (_result.length < length) {
             if (_key === undefined) {
@@ -187,5 +201,5 @@ module.exports = {
         }
 
         return _result;
-    }
+    },
 }

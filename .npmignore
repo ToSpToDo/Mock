@@ -3,7 +3,6 @@ bak
 .*.swp
 .idea
 node_modules
-src
 test
 bower_components
 coverage

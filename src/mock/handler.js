@@ -359,6 +359,10 @@ Handler.extend({
                 if (inc && inc[2] && Util.type(options.template[key]) === 'number') {
                     options.template[key] += parseInt(inc[2], 10)
                 }
+                // 实现字符串(尾部是数字)类型的自加
+                if (inc && inc[2] && Util.type(options.template[key]) === 'string') {
+                    options.template[key] = Util.strIncre(options.template[key], inc[2])
+                }
             }
         }
 

@@ -101,13 +101,13 @@ Util.values = function(obj) {
         var tpl = Mock.heredoc(function() {
             /*!
         {{email}}{{age}}
-        <!-- Mock { 
+        <!-- Mock {
             email: '@EMAIL',
             age: '@INT(1,100)'
         } -->
             *\/
         })
-    
+
     **相关阅读**
     * [Creating multiline strings in JavaScript](http://stackoverflow.com/questions/805107/creating-multiline-strings-in-javascript)、
 */
@@ -122,5 +122,26 @@ Util.heredoc = function heredoc(fn) {
 }
 
 Util.noop = function() {}
+
+Util.strIncre = function(str, step) {
+    step = parseInt(step, 10);
+    if(isNaN(step)){
+        return str;
+    }
+    var regexResult = /(^\w*?)(\d+$)/.exec(str); //处理非数字开头，但以数字结尾的情况
+    if(!regexResult){
+       return str;
+    }
+    var prefix = regexResult[1] || '';
+    var suffix = regexResult[2];
+    var num = parseInt(suffix) + step;
+
+    var zeroNum = suffix.length - (num+'').length;
+    for(var i=0;i<zeroNum;i++){ // 多出来的位数补充0
+        prefix +='0';
+    }
+
+    return prefix + num;
+}
 
 module.exports = Util

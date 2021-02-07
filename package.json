@@ -1,15 +1,15 @@
 {
-  "name": "mockjs",
+  "name": "kayuan-mockjs",
   "title": "Mock.js",
   "description": "生成随机数据 & 拦截 Ajax 请求",
-  "version": "1.0.1-beta3",
+  "version": "0.1.7",
   "homepage": "http://mockjs.com/",
   "keywords": [
     "mock",
     "mockJSON",
     "mockAjax"
   ],
-  "author": "nuysoft@gmail.com",
+  "author": "",
   "dependencies": {
     "commander": "*"
   },
@@ -28,7 +28,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/nuysoft/Mock.git"
+    "url": "git://github.com/kayuanweb/Mock.git"
   },
   "main": "./dist/mock.js",
   "scripts": {

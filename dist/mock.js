@@ -52,7 +52,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/* global require, module, window */
 	var Handler = __webpack_require__(1)
@@ -122,21 +122,21 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = Mock
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	/* 
+	/*
 	    ## Handler
 
 	    处理数据模板。
-	    
+
 	    * Handler.gen( template, name?, context? )
 
 	        入口方法。
 
 	    * Data Template Definition, DTD
-	        
+
 	        处理数据模板定义。
 
 	        * Handler.array( options )
@@ -146,7 +146,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        * Handler.string( options )
 	        * Handler.function( options )
 	        * Handler.regexp( options )
-	        
+
 	        处理路径（相对和绝对）。
 
 	        * Handler.getValueByKeyPath( key, options )
@@ -177,29 +177,31 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    Handle.gen(template, name, options)
 	    context
-	        currentContext, templateCurrentContext, 
+	        currentContext, templateCurrentContext,
 	        path, templatePath
 	        root, templateRoot
 	*/
-	Handler.gen = function(template, name, context) {
+	Handler.gen = function (template, name, context) {
 	    /* jshint -W041 */
 	    name = name == undefined ? '' : (name + '')
 
 	    context = context || {}
 	    context = {
-	            // 当前访问路径，只有属性名，不包括生成规则
-	            path: context.path || [Constant.GUID],
-	            templatePath: context.templatePath || [Constant.GUID++],
-	            // 最终属性值的上下文
-	            currentContext: context.currentContext,
-	            // 属性值模板的上下文
-	            templateCurrentContext: context.templateCurrentContext || template,
-	            // 最终值的根
-	            root: context.root || context.currentContext,
-	            // 模板的根
-	            templateRoot: context.templateRoot || context.templateCurrentContext || template
-	        }
-	        // console.log('path:', context.path.join('.'), template)
+	        // 当前访问路径，只有属性名，不包括生成规则
+	        path: context.path || [Constant.GUID],
+	        templatePath: context.templatePath || [Constant.GUID++],
+	        _rootValue: context._rootValue || [Constant.GUID++],
+	        _count: context._count || [Constant.GUID++],
+	        // 最终属性值的上下文
+	        currentContext: context.currentContext,
+	        // 属性值模板的上下文
+	        templateCurrentContext: context.templateCurrentContext || template,
+	        // 最终值的根
+	        root: context.root || context.currentContext,
+	        // 模板的根
+	        templateRoot: context.templateRoot || context.templateCurrentContext || template
+	    }
+	    // console.log('path:', context.path.join('.'), template)
 
 	    var rule = Parser.parse(name)
 	    var type = Util.type(template)
@@ -214,7 +216,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            // 属性名 + 生成规则
 	            name: name,
 	            // 属性名
-	            parsedName: name ? name.replace(Constant.RE_KEY, '$1') : name,
+	            parsedName: name ? name.replace(Constant.RE_PARSED_KEY, '$1') : name,
 
 	            // 解析后的生成规则
 	            rule: rule,
@@ -223,29 +225,48 @@ return /******/ (function(modules) { // webpackBootstrap
 	        })
 
 	        if (!context.root) context.root = data
+
 	        return data
 	    }
 
 	    return template
 	}
-
+	/**
+	 * 对属性值进行解析
+	 *      1、array || object 相对复杂。需要处理嵌套（递归）。
+	 *      2、其他类型比较简单。 string:占位符
+	 */
 	Handler.extend({
-	    array: function(options) {
+	    array: function (options) {
 	        var result = [],
 	            i, ii;
 
-	        // 'name|1': []
-	        // 'name|count': []
-	        // 'name|min-max': []
+	        /**
+	         *    empty array value
+	         *    'name|1': []
+	         *    'name|count': []
+	         *    'name|min-max': []
+	         */
 	        if (options.template.length === 0) return result
 
-	        // 'arr': [{ 'email': '@EMAIL' }, { 'email': '@EMAIL' }]
+	        options.context._rootValue.push(result)
+	        options.context._count.push(options.rule.count || options.template.length)
+
+	        /**
+	         *  无属性规则 ：arrKey:[{key|rule : value|rule}]
+	         *      'arr': [{ 'email': '@EMAIL' }, { 'email': '@EMAIL' }]
+	         *
+	         *  处理：
+	         *      遍历数组，将数组item进行递归处理
+	         */
 	        if (!options.rule.parameters) {
 	            for (i = 0; i < options.template.length; i++) {
 	                options.context.path.push(i)
 	                options.context.templatePath.push(i)
 	                result.push(
 	                    Handler.gen(options.template[i], i, {
+	                        _rootValue: options.context._rootValue,
+	                        _count: options.context._count,
 	                        path: options.context.path,
 	                        templatePath: options.context.templatePath,
 	                        currentContext: result,
@@ -258,13 +279,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	                options.context.templatePath.pop()
 	            }
 	        } else {
-	            // 'method|1': ['GET', 'POST', 'HEAD', 'DELETE']
+	            /**
+	             *  arrKey|1 : 固定值（1）的属性规则 ！
+	             *      'method|1': ['GET', 'POST', 'HEAD', 'DELETE']
+	             *      'arr|1': [{ 'email': '@EMAIL' }, { 'email': '@EMAIL' }]
+	             *  处理：
+	             *      将数组item进行递归处理。随机其中一个值
+	             *
+	             *  非（1）的情况走 range 分支。eg: arrKey|num 时：rule={ min: num ,max: undefined ,count: num}
+	             */
 	            if (options.rule.min === 1 && options.rule.max === undefined) {
 	                // fix #17
 	                options.context.path.push(options.name)
 	                options.context.templatePath.push(options.name)
 	                result = Random.pick(
 	                    Handler.gen(options.template, undefined, {
+	                        _rootValue: options.context._rootValue,
+	                        _count: options.context._count,
 	                        path: options.context.path,
 	                        templatePath: options.context.templatePath,
 	                        currentContext: result,
@@ -276,7 +307,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	                options.context.path.pop()
 	                options.context.templatePath.pop()
 	            } else {
-	                // 'data|+1': [{}, {}]
+	                /**
+	                 *  arrKey|+step : 步进的属性规则 ！默认从0开始
+	                 *      'arrKey|+1': [{}, {}]
+	                 *  处理：
+	                 *      将数组item进行递归处理。从0开始顺序步进获取
+	                 *
+	                 *  demos:
+	                 *      let template = {
+	                 *           'arr_step|+1': [1, 2, 3]
+	                 *      };
+	                 *      let arr_step1 = Mock.mock(template)
+	                 *      let arr_step2 = Mock.mock(template)
+	                 *      let arr_step3 = Mock.mock(template)
+	                 *
+	                 *      // step of object.key
+	                 *      Mock.mock({
+	                 *              "array|3": [
+	                 *                   // 不属于数组的步进规则。具体查看object中的步进规则处理逻辑
+	                 *                  {'id|+1': 1}
+	                 *               ]
+	                 *          })
+	                 */
 	                if (options.rule.parameters[2]) {
 	                    options.template.__order_index = options.template.__order_index || 0
 
@@ -290,8 +342,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	                        root: options.context.root || result,
 	                        templateRoot: options.context.templateRoot || options.template
 	                    })[
-	                        options.template.__order_index % options.template.length
-	                    ]
+	                    options.template.__order_index % options.template.length
+	                        ]
 
 	                    options.template.__order_index += +options.rule.parameters[2]
 
@@ -299,14 +351,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	                    options.context.templatePath.pop()
 
 	                } else {
-	                    // 'data|1-10': [{}]
+	                    /**
+	                     *   arrKey|min-max :[item,item] 随机个数。rule.count 为对应的随机个数值。or arrKey|num(min >1)
+	                     *      'arrKey|1-8': [{}, {}]
+	                     *  处理：
+	                     *      按照随机个数值 & 将数组[item1,item2]按照整体进行递归处理。
+	                     */
 	                    for (i = 0; i < options.rule.count; i++) {
-	                        // 'data|1-10': [{}, {}]
+	                        // 把 [{},{}] 作为一个整体进行随机处理的。（大多数情况下都是一个值[{}]）
 	                        for (ii = 0; ii < options.template.length; ii++) {
 	                            options.context.path.push(result.length)
 	                            options.context.templatePath.push(ii)
+
 	                            result.push(
 	                                Handler.gen(options.template[ii], result.length, {
+	                                    _rootValue: options.context._rootValue,
+	                                    _count: options.context._count,
 	                                    path: options.context.path,
 	                                    templatePath: options.context.templatePath,
 	                                    currentContext: result,
@@ -315,6 +375,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                                    templateRoot: options.context.templateRoot || options.template
 	                                })
 	                            )
+
 	                            options.context.path.pop()
 	                            options.context.templatePath.pop()
 	                        }
@@ -322,24 +383,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	            }
 	        }
+
+	        options.context._rootValue.pop()
+	        options.context._count.pop()
+
 	        return result
 	    },
-	    object: function(options) {
+	    object: function (options) {
 	        var result = {},
 	            keys, fnKeys, key, parsedKey, inc, i;
 
-	        // 'obj|min-max': {}
+	        options.context._rootValue.push(result)
+	        options.context._count.push(options.rule.count || Util.keys(options.template).length)
+
 	        /* jshint -W041 */
+	        /**
+	         * objKey|min-max :objValue  随机个数。rule.count 为对应的随机个数值。or objKey|num(min >1)
+	         *
+	         * 处理：
+	         *     遍历obj，将item进行递归处理
+	         * 备注：
+	         *      不同于数组的随机copy。 objKey|count 是随机获取对应的 key
+	         *
+	         */
 	        if (options.rule.min != undefined) {
 	            keys = Util.keys(options.template)
+	            // 先打乱顺序，确保取到随机的 obj[key]
 	            keys = Random.shuffle(keys)
 	            keys = keys.slice(0, options.rule.count)
+
 	            for (i = 0; i < keys.length; i++) {
 	                key = keys[i]
-	                parsedKey = key.replace(Constant.RE_KEY, '$1')
+	                parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
+
 	                options.context.path.push(parsedKey)
 	                options.context.templatePath.push(key)
 	                result[parsedKey] = Handler.gen(options.template[key], key, {
+	                    _rootValue: options.context._rootValue,
+	                    _count: options.context._count,
 	                    path: options.context.path,
 	                    templatePath: options.context.templatePath,
 	                    currentContext: result,
@@ -352,7 +433,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 
 	        } else {
-	            // 'obj': {}
+	            //普通的对象处理 'obj': {}
 	            keys = []
 	            fnKeys = [] // #25 改变了非函数属性的顺序，查找起来不方便
 	            for (key in options.template) {
@@ -374,10 +455,13 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	            for (i = 0; i < keys.length; i++) {
 	                key = keys[i]
-	                parsedKey = key.replace(Constant.RE_KEY, '$1')
+	                parsedKey = key.replace(Constant.RE_PARSED_KEY, '$1')
+
 	                options.context.path.push(parsedKey)
 	                options.context.templatePath.push(key)
 	                result[parsedKey] = Handler.gen(options.template[key], key, {
+	                    _rootValue: options.context._rootValue,
+	                    _count: options.context._count,
 	                    path: options.context.path,
 	                    templatePath: options.context.templatePath,
 	                    currentContext: result,
@@ -387,25 +471,57 @@ return /******/ (function(modules) { // webpackBootstrap
 	                })
 	                options.context.path.pop()
 	                options.context.templatePath.pop()
-	                    // 'id|+1': 1
+
+	                /**
+	                 *  配合数组step ：{ arr|count: [ {'step|+1': 1} ] }
+	                 *  处理：
+	                 *      生成对应的值，然后覆写template对应值（实现自加）
+	                 *  demos:
+	                 *      Mock.mock({
+	                 *           'arr|3': [{
+	                 *               'step|+1': 1
+	                 *          }]
+	                 *       })
+	                 */
 	                inc = key.match(Constant.RE_KEY)
 	                if (inc && inc[2] && Util.type(options.template[key]) === 'number') {
 	                    options.template[key] += parseInt(inc[2], 10)
 	                }
+	                // 实现字符串(尾部是数字)类型的自加
+	                if (inc && inc[2] && Util.type(options.template[key]) === 'string') {
+	                    options.template[key] = Util.strIncre(options.template[key], inc[2])
+	                }
 	            }
 	        }
+
+	        options.context._rootValue.pop()
+	        options.context._count.pop()
+
 	        return result
 	    },
-	    number: function(options) {
+	    number: function (options) {
 	        var result, parts;
-	        if (options.rule.decimal) { // float
+	        if (options.rule.decimal) {
+	            /**
+	             * 处理：
+	             *      float_range.range|1-10.1-10: template(1.1)  // float_range(数值范围).range(小数点位数)
+	             *      1、range(数值范围):参考 else 。无规则时，直接取 template 的整数部分
+	             *      2、小数位数：优先使用 template 的。不够随机追加小数点
+	             * demos:
+	             *       'float_d.range|10.1-8': 1.1,
+	             *       'float_range.range|1-8.1-8': 1.1,
+	             *       'float_range.count|1-8.3': 1.1,
+	             *       'float_.range|.1-8': 1.111111111,
+	             *
+	             */
 	            options.template += ''
+	            // 拆分 整数 & 小数部分
 	            parts = options.template.split('.')
-	                // 'float1|.1-10': 10,
-	                // 'float2|1-100.1-10': 1,
-	                // 'float3|999.1-10': 1,
-	                // 'float4|.3-10': 123.123,
+
+	            // 整数部分：无规则时，取浮点数 template 的整数部分
 	            parts[0] = options.rule.range ? options.rule.count : parts[0]
+
+	            // 小数位数：优先使用 template 的。不够随机追加小数点
 	            parts[1] = (parts[1] || '').slice(0, options.rule.dcount)
 	            while (parts[1].length < options.rule.dcount) {
 	                parts[1] += (
@@ -413,21 +529,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	                    (parts[1].length < options.rule.dcount - 1) ? Random.character('number') : Random.character('123456789')
 	                )
 	            }
+
 	            result = parseFloat(parts.join('.'), 10)
-	        } else { // integer
-	            // 'grade1|1-100': 1,
+	        } else {
+	            /**
+	             *  处理：
+	             *      无小数匹配规则情况
+	             *
+	             * demos:
+	             *      Mock.mock({
+	             *          // todo:
+	             *          'int_step|+1': 1,           // 1
+	             *          // range : 默认调用随机函数获取 min-max 范围的一个随机值 count ！只有一个数字时，默认设置为 count
+	             *          'int_count|10': 1,          // 10
+	             *          'int_range|10-100': 1,      // random (10 - 100)
+	             *          'int_range_count|10-': 1,   // 10
+	             *          // 无规则 template
+	             *          'int_template': 1,          // 1
+	             *          'int_template_|': 1,        // 1
+	             *      })
+	             */
 	            result = options.rule.range && !options.rule.parameters[2] ? options.rule.count : options.template
 	        }
 	        return result
 	    },
-	    boolean: function(options) {
+	    boolean: function (options) {
 	        var result;
-	        // 'prop|multiple': false, 当前值是相反值的概率倍数
-	        // 'prop|probability-probability': false, 当前值与相反值的概率
+	        /**
+	         * 当前值是相反值的概率倍数.不支持小数（自动 parseInt 处理）
+	         *
+	         * demos:
+	         *     'prop|multiple': false,
+	         *     'prop|probability-probability': false,
+	         */
 	        result = options.rule.parameters ? Random.bool(options.rule.min, options.rule.max, options.template) : options.template
 	        return result
 	    },
-	    string: function(options) {
+	    string: function (options) {
 	        var result = '',
 	            i, placeholders, ph, phed;
 	        if (options.template.length) {
@@ -456,7 +594,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                phed = Handler.placeholder(ph, options.context.currentContext, options.context.templateCurrentContext, options)
 
 	                // 只有一个占位符，并且没有其他字符
-	                if (placeholders.length === 1 && ph === result && typeof phed !== typeof result) { // 
+	                if (placeholders.length === 1 && ph === result && typeof phed !== typeof result) { //
 	                    result = phed
 	                    break
 
@@ -467,7 +605,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                    if (/^(true|false)$/.test(phed)) {
 	                        result = phed === 'true' ? true :
 	                            phed === 'false' ? false :
-	                            phed // 已经是布尔值
+	                                phed // 已经是布尔值
 	                        break
 	                    }
 	                }
@@ -481,11 +619,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        return result
 	    },
-	    'function': function(options) {
+	    'function': function (options) {
 	        // ( context, options )
 	        return options.template.call(options.context.currentContext, options)
 	    },
-	    'regexp': function(options) {
+	    /**
+	     *
+	     *  /regexp/.source => 'regexp'
+	     */
+	    'regexp': function (options) {
 	        var source = ''
 
 	        // 'name': /regexp/,
@@ -508,14 +650,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	})
 
 	Handler.extend({
-	    _all: function() {
+	    _all: function () {
 	        var re = {};
 	        for (var key in Random) re[key.toLowerCase()] = key
 	        return re
 	    },
 	    // 处理占位符，转换为最终值
-	    placeholder: function(placeholder, obj, templateContext, options) {
-	        // console.log(options.context.path)
+	    placeholder: function (placeholder, obj, templateContext, options) {
 	        // 1 key, 2 params
 	        Constant.RE_PLACEHOLDER.exec('')
 	        var parts = Constant.RE_PLACEHOLDER.exec(placeholder),
@@ -589,13 +730,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	            case 'function':
 	                // 执行占位符方法（大多数情况）
 	                handle.options = options
+	                // todo: [options].concat(params)) is better ！但需要改造所有包含参数的 @placeholder 函数
 	                var re = handle.apply(Random, params)
 	                if (re === undefined) re = '' // 因为是在字符串中，所以默认为空字符串。
 	                delete handle.options
 	                return re
 	        }
 	    },
-	    getValueByKeyPath: function(key, options) {
+	    getValueByKeyPath: function (key, options) {
 	        var originalKey = key
 	        var keyPathParts = this.splitPathToArray(key)
 	        var absolutePathParts = []
@@ -642,7 +784,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    },
 	    // https://github.com/kissyteam/kissy/blob/master/src/path/src/path.js
-	    normalizePath: function(pathParts) {
+	    normalizePath: function (pathParts) {
 	        var newPathParts = []
 	        for (var i = 0; i < pathParts.length; i++) {
 	            switch (pathParts[i]) {
@@ -657,7 +799,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        return newPathParts
 	    },
-	    splitPathToArray: function(path) {
+	    splitPathToArray: function (path) {
 	        var parts = path.split(/\/+/);
 	        if (!parts[parts.length - 1]) parts = parts.slice(0, -1)
 	        if (!parts[0]) parts = parts.slice(1)
@@ -667,9 +809,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = Handler
 
-/***/ },
+
+/***/ }),
 /* 2 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Constant
@@ -697,6 +840,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	*/
 	module.exports = {
 	    GUID: 1,
+	    RE_PARSED_KEY: /(.+)(?:\|.*)/, // fixed:RE_KEY bug. 'key|10.' => 'key.'
 	    RE_KEY: /(.+)\|(?:\+(\d+)|([\+\-]?\d+-?[\+\-]?\d*)?(?:\.(\d+-?\d*))?)/,
 	    RE_RANGE: /([\+\-]?\d+)-?([\+\-]?\d+)?/,
 	    RE_PLACEHOLDER: /\\*@([^@#%&()\?\s]+)(?:\((.*?)\))?/g
@@ -705,9 +849,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // RE_KEY: /^key$/
 	}
 
-/***/ },
+
+/***/ }),
 /* 3 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Utilities
@@ -812,13 +957,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var tpl = Mock.heredoc(function() {
 	            /*!
 	        {{email}}{{age}}
-	        <!-- Mock { 
+	        <!-- Mock {
 	            email: '@EMAIL',
 	            age: '@INT(1,100)'
 	        } -->
 	            *\/
 	        })
-	    
+
 	    **相关阅读**
 	    * [Creating multiline strings in JavaScript](http://stackoverflow.com/questions/805107/creating-multiline-strings-in-javascript)、
 	*/
@@ -834,11 +979,33 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	Util.noop = function() {}
 
+	Util.strIncre = function(str, step) {
+	    step = parseInt(step, 10);
+	    if(isNaN(step)){
+	        return str;
+	    }
+	    var regexResult = /(^\w*?)(\d+$)/.exec(str); //处理非数字开头，但以数字结尾的情况
+	    if(!regexResult){
+	       return str;
+	    }
+	    var prefix = regexResult[1] || '';
+	    var suffix = regexResult[2];
+	    var num = parseInt(suffix) + step;
+
+	    var zeroNum = suffix.length - (num+'').length;
+	    for(var i=0;i<zeroNum;i++){ // 多出来的位数补充0
+	        prefix +='0';
+	    }
+
+	    return prefix + num;
+	}
+
 	module.exports = Util
 
-/***/ },
+
+/***/ }),
 /* 4 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 		## Parser
@@ -846,19 +1013,22 @@ return /******/ (function(modules) { // webpackBootstrap
 		解析数据模板（属性名部分）。
 
 		* Parser.parse( name )
-			
+
 			```json
 			{
 				parameters: [ name, inc, range, decimal ],
 				rnage: [ min , max ],
 
+	            // range
 				min: min,
 				max: max,
+				// random length for range
 				count : count,
 
 				decimal: decimal,
 				dmin: dmin,
 				dmax: dmax,
+				// random length for decimal
 				dcount: dcount
 			}
 			```
@@ -869,52 +1039,53 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/* jshint -W041 */
 	module.exports = {
-		parse: function(name) {
-			name = name == undefined ? '' : (name + '')
+	    parse: function (name) {
+	        name = name == undefined ? '' : (name + '')
 
-			var parameters = (name || '').match(Constant.RE_KEY)
+	        var parameters = (name || '').match(Constant.RE_KEY)
 
-			var range = parameters && parameters[3] && parameters[3].match(Constant.RE_RANGE)
-			var min = range && range[1] && parseInt(range[1], 10) // || 1
-			var max = range && range[2] && parseInt(range[2], 10) // || 1
-				// repeat || min-max || 1
-				// var count = range ? !range[2] && parseInt(range[1], 10) || Random.integer(min, max) : 1
-			var count = range ? !range[2] ? parseInt(range[1], 10) : Random.integer(min, max) : undefined
+	        var range = parameters && parameters[3] && parameters[3].match(Constant.RE_RANGE)
+	        var min = range && range[1] && parseInt(range[1], 10) // || 1
+	        var max = range && range[2] && parseInt(range[2], 10) // || 1
+	        // repeat || min-max || 1
+	        // var count = range ? !range[2] && parseInt(range[1], 10) || Random.integer(min, max) : 1
+	        var count = range ? !range[2] ? parseInt(range[1], 10) : Random.integer(min, max) : undefined
 
-			var decimal = parameters && parameters[4] && parameters[4].match(Constant.RE_RANGE)
-			var dmin = decimal && decimal[1] && parseInt(decimal[1], 10) // || 0,
-			var dmax = decimal && decimal[2] && parseInt(decimal[2], 10) // || 0,
-				// int || dmin-dmax || 0
-			var dcount = decimal ? !decimal[2] && parseInt(decimal[1], 10) || Random.integer(dmin, dmax) : undefined
+	        var decimal = parameters && parameters[4] && parameters[4].match(Constant.RE_RANGE)
+	        var dmin = decimal && decimal[1] && parseInt(decimal[1], 10) // || 0,
+	        var dmax = decimal && decimal[2] && parseInt(decimal[2], 10) // || 0,
+	        // int || dmin-dmax || 0
+	        var dcount = decimal ? !decimal[2] && parseInt(decimal[1], 10) || Random.integer(dmin, dmax) : undefined
 
-			var result = {
-				// 1 name, 2 inc, 3 range, 4 decimal
-				parameters: parameters,
-				// 1 min, 2 max
-				range: range,
-				min: min,
-				max: max,
-				// min-max
-				count: count,
-				// 是否有 decimal
-				decimal: decimal,
-				dmin: dmin,
-				dmax: dmax,
-				// dmin-dimax
-				dcount: dcount
-			}
+	        var result = {
+	            // 1 name, 2 inc, 3 range, 4 decimal
+	            parameters: parameters,
+	            // 1 min, 2 max
+	            range: range,
+	            min: min,
+	            max: max,
+	            // min-max
+	            count: count,
+	            // 是否有 decimal
+	            decimal: decimal,
+	            dmin: dmin,
+	            dmax: dmax,
+	            // dmin-dimax
+	            dcount: dcount
+	        }
 
-			for (var r in result) {
-				if (result[r] != undefined) return result
-			}
+	        for (var r in result) {
+	            if (result[r] != undefined) return result
+	        }
 
-			return {}
-		}
+	        return {}
+	    }
 	}
 
-/***/ },
+
+/***/ }),
 /* 5 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## Mock.Random
@@ -941,44 +1112,44 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = Random
 
-/***/ },
+/***/ }),
 /* 6 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Basics
 	*/
 	module.exports = {
 	    // 返回一个随机的布尔值。
-	    boolean: function(min, max, cur) {
+	    boolean: function (min, max, cur) {
 	        if (cur !== undefined) {
 	            min = typeof min !== 'undefined' && !isNaN(min) ? parseInt(min, 10) : 1
 	            max = typeof max !== 'undefined' && !isNaN(max) ? parseInt(max, 10) : 1
-	            return Math.random() > 1.0 / (min + max) * min ? !cur : cur
+	            return Math.random() > Math.min(min, max) / (min + max) ? cur : !cur
 	        }
 
 	        return Math.random() >= 0.5
 	    },
-	    bool: function(min, max, cur) {
+	    bool: function (min, max, cur) {
 	        return this.boolean(min, max, cur)
 	    },
 	    // 返回一个随机的自然数（大于等于 0 的整数）。
-	    natural: function(min, max) {
+	    natural: function (min, max) {
 	        min = typeof min !== 'undefined' ? parseInt(min, 10) : 0
 	        max = typeof max !== 'undefined' ? parseInt(max, 10) : 9007199254740992 // 2^53
 	        return Math.round(Math.random() * (max - min)) + min
 	    },
 	    // 返回一个随机的整数。
-	    integer: function(min, max) {
+	    integer: function (min, max) {
 	        min = typeof min !== 'undefined' ? parseInt(min, 10) : -9007199254740992
 	        max = typeof max !== 'undefined' ? parseInt(max, 10) : 9007199254740992 // 2^53
 	        return Math.round(Math.random() * (max - min)) + min
 	    },
-	    int: function(min, max) {
+	    int: function (min, max) {
 	        return this.integer(min, max)
 	    },
 	    // 返回一个随机的浮点数。
-	    float: function(min, max, dmin, dmax) {
+	    float: function (min, max, dmin, dmax) {
 	        dmin = dmin === undefined ? 0 : dmin
 	        dmin = Math.max(Math.min(dmin, 17), 0)
 	        dmax = dmax === undefined ? 17 : dmax
@@ -993,7 +1164,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return parseFloat(ret, 10)
 	    },
 	    // 返回一个随机字符。
-	    character: function(pool) {
+	    character: function (pool) {
 	        var pools = {
 	            lower: 'abcdefghijklmnopqrstuvwxyz',
 	            upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -1006,11 +1177,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	        pool = pools[('' + pool).toLowerCase()] || pool
 	        return pool.charAt(this.natural(0, pool.length - 1))
 	    },
-	    char: function(pool) {
+	    char: function (pool) {
 	        return this.character(pool)
 	    },
 	    // 返回一个随机字符串。
-	    string: function(pool, min, max) {
+	    string: function (pool, min, max) {
 	        var len
 	        switch (arguments.length) {
 	            case 0: // ()
@@ -1042,11 +1213,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	        return text
 	    },
-	    str: function( /*pool, min, max*/ ) {
+	    str: function (/*pool, min, max*/) {
 	        return this.string.apply(this, arguments)
 	    },
 	    // 返回一个整型数组。
-	    range: function(start, stop, step) {
+	    range: function (start, stop, step) {
 	        // range( stop )
 	        if (arguments.length <= 1) {
 	            stop = start || 0;
@@ -1072,9 +1243,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 
-/***/ },
+
+/***/ }),
 /* 7 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Date
@@ -1218,9 +1390,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 
-/***/ },
+/***/ }),
 /* 8 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(module) {/* global document  */
 	/*
@@ -1506,9 +1678,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(9)(module)))
 
-/***/ },
+/***/ }),
 /* 9 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	module.exports = function(module) {
 		if(!module.webpackPolyfill) {
@@ -1522,9 +1694,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 
-/***/ },
+/***/ }),
 /* 10 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## Color
@@ -1664,9 +1836,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 
-/***/ },
+/***/ }),
 /* 11 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Color Convert
@@ -1846,9 +2018,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		}
 	}
 
-/***/ },
+/***/ }),
 /* 12 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Color 字典数据
@@ -1927,9 +2099,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 
-/***/ },
+/***/ }),
 /* 13 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## Text
@@ -2053,9 +2225,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 
-/***/ },
+/***/ }),
 /* 14 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## Helpers
@@ -2064,119 +2236,209 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Util = __webpack_require__(3)
 
 	module.exports = {
-		// 把字符串的第一个字母转换为大写。
-		capitalize: function(word) {
-			return (word + '').charAt(0).toUpperCase() + (word + '').substr(1)
-		},
-		// 把字符串转换为大写。
-		upper: function(str) {
-			return (str + '').toUpperCase()
-		},
-		// 把字符串转换为小写。
-		lower: function(str) {
-			return (str + '').toLowerCase()
-		},
-		// 从数组中随机选取一个元素，并返回。
-		pick: function pick(arr, min, max) {
-			// pick( item1, item2 ... )
-			if (!Util.isArray(arr)) {
-				arr = [].slice.call(arguments)
-				min = 1
-				max = 1
-			} else {
-				// pick( [ item1, item2 ... ] )
-				if (min === undefined) min = 1
+	    // 把字符串的第一个字母转换为大写。
+	    capitalize: function (word) {
+	        return (word + '').charAt(0).toUpperCase() + (word + '').substr(1)
+	    },
+	    // 把字符串转换为大写。
+	    upper: function (str) {
+	        return (str + '').toUpperCase()
+	    },
+	    // 把字符串转换为小写。
+	    lower: function (str) {
+	        return (str + '').toLowerCase()
+	    },
+	    // 从数组中随机选取一个元素，并返回。
+	    pick: function pick(arr, min, max) {
+	        // pick( item1, item2 ... )
+	        if (!Util.isArray(arr)) {
+	            arr = [].slice.call(arguments)
+	            min = 1
+	            max = 1
+	        } else {
+	            // pick( [ item1, item2 ... ] )
+	            if (min === undefined) min = 1
 
-				// pick( [ item1, item2 ... ], count )
-				if (max === undefined) max = min
-			}
+	            // pick( [ item1, item2 ... ], count )
+	            if (max === undefined) max = min
+	        }
 
-			if (min === 1 && max === 1) return arr[this.natural(0, arr.length - 1)]
+	        if (min === 1 && max === 1) return arr[this.natural(0, arr.length - 1)]
 
-			// pick( [ item1, item2 ... ], min, max )
-			return this.shuffle(arr, min, max)
+	        // pick( [ item1, item2 ... ], min, max )
+	        return this.shuffle(arr, min, max)
 
-			// 通过参数个数判断方法签名，扩展性太差！#90
-			// switch (arguments.length) {
-			// 	case 1:
-			// 		// pick( [ item1, item2 ... ] )
-			// 		return arr[this.natural(0, arr.length - 1)]
-			// 	case 2:
-			// 		// pick( [ item1, item2 ... ], count )
-			// 		max = min
-			// 			/* falls through */
-			// 	case 3:
-			// 		// pick( [ item1, item2 ... ], min, max )
-			// 		return this.shuffle(arr, min, max)
-			// }
-		},
-		/*
-		    打乱数组中元素的顺序，并返回。
-		    Given an array, scramble the order and return it.
+	        // 通过参数个数判断方法签名，扩展性太差！#90
+	        // switch (arguments.length) {
+	        // 	case 1:
+	        // 		// pick( [ item1, item2 ... ] )
+	        // 		return arr[this.natural(0, arr.length - 1)]
+	        // 	case 2:
+	        // 		// pick( [ item1, item2 ... ], count )
+	        // 		max = min
+	        // 			/* falls through */
+	        // 	case 3:
+	        // 		// pick( [ item1, item2 ... ], min, max )
+	        // 		return this.shuffle(arr, min, max)
+	        // }
+	    },
+	    /*
+	        打乱数组中元素的顺序，并返回。
+	        Given an array, scramble the order and return it.
 
-		    其他的实现思路：
-		        // https://code.google.com/p/jslibs/wiki/JavascriptTips
-		        result = result.sort(function() {
-		            return Math.random() - 0.5
-		        })
-		*/
-		shuffle: function shuffle(arr, min, max) {
-			arr = arr || []
-			var old = arr.slice(0),
-				result = [],
-				index = 0,
-				length = old.length;
-			for (var i = 0; i < length; i++) {
-				index = this.natural(0, old.length - 1)
-				result.push(old[index])
-				old.splice(index, 1)
-			}
-			switch (arguments.length) {
-				case 0:
-				case 1:
-					return result
-				case 2:
-					max = min
-						/* falls through */
-				case 3:
-					min = parseInt(min, 10)
-					max = parseInt(max, 10)
-					return result.slice(0, this.natural(min, max))
-			}
-		},
-		/*
-		    * Random.order(item, item)
-		    * Random.order([item, item ...])
+	        其他的实现思路：
+	            // https://code.google.com/p/jslibs/wiki/JavascriptTips
+	            result = result.sort(function() {
+	                return Math.random() - 0.5
+	            })
+	    */
+	    shuffle: function shuffle(arr, min, max) {
+	        arr = arr || []
+	        var old = arr.slice(0),
+	            result = [],
+	            index = 0,
+	            length = old.length;
+	        for (var i = 0; i < length; i++) {
+	            index = this.natural(0, old.length - 1)
+	            result.push(old[index])
+	            old.splice(index, 1)
+	        }
+	        switch (arguments.length) {
+	            case 0:
+	            case 1:
+	                return result
+	            case 2:
+	                max = min
+	            /* falls through */
+	            case 3:
+	                min = parseInt(min, 10)
+	                max = parseInt(max, 10)
+	                return result.slice(0, this.natural(min, max))
+	        }
+	    },
+	    /*
+	        * Random.order(item, item)
+	        * Random.order([item, item ...])
 
-		    顺序获取数组中的元素
+	        顺序获取数组中的元素
 
-		    [JSON导入数组支持数组数据录入](https://github.com/thx/RAP/issues/22)
+	        [JSON导入数组支持数组数据录入](https://github.com/thx/RAP/issues/22)
 
-		    不支持单独调用！
-		*/
-		order: function order(array) {
-			order.cache = order.cache || {}
+	        不支持单独调用！
+	    */
+	    order: function order(array) {
+	        order.cache = order.cache || {}
 
-			if (arguments.length > 1) array = [].slice.call(arguments, 0)
+	        if (arguments.length > 1) array = [].slice.call(arguments, 0)
 
-			// options.context.path/templatePath
-			var options = order.options
-			var templatePath = options.context.templatePath.join('.')
+	        // options.context.path/templatePath
+	        var options = order.options
+	        var templatePath = options.context.templatePath.join('.')
 
-			var cache = (
-				order.cache[templatePath] = order.cache[templatePath] || {
-					index: 0,
-					array: array
-				}
-			)
+	        var cache = (
+	            order.cache[templatePath] = order.cache[templatePath] || {
+	                index: 0,
+	                array: array
+	            }
+	        )
 
-			return cache.array[cache.index++ % cache.array.length]
-		}
+	        return cache.array[cache.index++ % cache.array.length]
+	    },
+	    /**
+	     * 确保随机 mock 的数组数据中 有且仅有一个（key）
+	     *
+	     * @param key ： 唯一值
+	     * @param arr ： 数组取值范围
+	     * @returns {*} ： arr.concat(key)[i]
+	     *
+	     * Mock.mock({
+	     *   'arr|10': [{
+	     *       'bool': '@unique(true,[true,false])',
+	     *       'number': '@unique(1,[0,2,3,4,5,6])',
+	     *       'str': '@unique("a",["a","a","b","c"])'
+	     *   }],
+	     *   'arr': [{
+	     *       'bool': '@unique(true,[true,false])',
+	     *       'number': '@unique(1,[0,2,3,4,5,6])',
+	     *       'str': '@unique("a",["a","a","a","d"])'
+	     *   }, {
+	     *       'bool': '@unique(true,[true,false])',
+	     *       'number': '@unique(1,[0,2,3,4,5,6])',
+	     *       'str': '@unique("a",["a","a","a","d"])'
+	     *   }]
+	     * })
+	     */
+	    unique: function (key, arr) {
+	        key = key === undefined ? true : key;
+	        arr = Array.isArray(arr) ? arr : [false];
+
+	        try {
+	            var _context = this.unique.options.context; // this.unique.options
+	            var _arrLength = _context._count.slice(-2)[0];
+	            var _arrValue = _context._rootValue.slice(-2)[0];
+	            var _parsedKey = _context.path.slice(-1)[0];
+
+	            if (_arrValue.some(function (item) {
+	                return item[_parsedKey] === key
+	            })) {
+	                return this.pick(arr.filter(function (item) {
+	                    return item !== key
+	                }));
+	            } else {
+	                if (_arrLength === _arrValue.length + 1) {
+	                    return key;
+	                } else {
+	                    return this.pick(arr.filter(function (item) {
+	                        return item !== key
+	                    }).concat(key));
+	                }
+	            }
+	        } catch (e) {
+	            return this.pick([true, false]);
+	        }
+	    },
+	    /**
+	     * 通过函数也可以实现：只是觉得比较常用，就统一提供一个占位符简化
+	     *
+	     * @param arr
+	     * @param length
+	     * @param key
+	     * @returns {Array}
+	     */
+	    randomArr: function (arr, length, key) {
+	        arr = Array.isArray(arr) ? arr : [false];
+	        length = typeof length === 'number' ? length : 1;
+
+	        var _result = [];
+	        var _filterArr = arr.filter(function (item) {
+	            return item !== key
+	        })
+	        var _key = key.context ? undefined : key
+
+	        while (_result.length < length) {
+	            if (_key === undefined) {
+	                _result.push(this.pick(arr))
+	            } else {
+	                if (_result.indexOf(_key) < 0) {
+	                    if (length - 1 === _result.length) {
+	                        _result.push(_key)
+	                    } else {
+	                        _result.push(this.pick(_filterArr.concat(_key)))
+	                    }
+	                } else {
+	                    _result.push(this.pick(_filterArr))
+	                }
+	            }
+	        }
+
+	        return _result;
+	    },
 	}
 
-/***/ },
+
+/***/ }),
 /* 15 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Name
@@ -2266,9 +2528,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		}
 	}
 
-/***/ },
+/***/ }),
 /* 16 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Web
@@ -2347,9 +2609,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	}
 
-/***/ },
+/***/ }),
 /* 17 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## Address
@@ -2399,9 +2661,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // state: function() {},
 	}
 
-/***/ },
+/***/ }),
 /* 18 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	/*
 	    ## Address 字典数据
@@ -6472,9 +6734,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = DICT_FIXED
 
-/***/ },
+/***/ }),
 /* 19 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## Miscellaneous
@@ -6582,9 +6844,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		}
 	}
 
-/***/ },
+/***/ }),
 /* 20 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	var Parser = __webpack_require__(21)
 	var Handler = __webpack_require__(22)
@@ -6593,9 +6855,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		Handler: Handler
 	}
 
-/***/ },
+/***/ }),
 /* 21 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	// https://github.com/nuysoft/regexp
 	// forked from https://github.com/ForbesLindesay/regexp
@@ -7168,9 +7430,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = parser
 
-/***/ },
+/***/ }),
 /* 22 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## RegExp Handler
@@ -7565,15 +7827,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = Handler
 
-/***/ },
+/***/ }),
 /* 23 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	module.exports = __webpack_require__(24)
 
-/***/ },
+/***/ }),
 /* 24 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## toJSONSchema
@@ -7624,15 +7886,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = toJSONSchema
 
 
-/***/ },
+/***/ }),
 /* 25 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	module.exports = __webpack_require__(26)
 
-/***/ },
+/***/ }),
 /* 26 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/*
 	    ## valid(template, data)
@@ -8080,15 +8342,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = valid
 
-/***/ },
+/***/ }),
 /* 27 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	module.exports = __webpack_require__(28)
 
-/***/ },
+/***/ }),
 /* 28 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	/* global window, document, location, Event, setTimeout */
 	/*
@@ -8533,7 +8795,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = MockXMLHttpRequest
 
-/***/ }
+/***/ })
 /******/ ])
 });
 ;
